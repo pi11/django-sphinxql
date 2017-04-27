@@ -235,6 +235,13 @@ searchd_mandatory_parameters = (
     'pid_file',
 )
 
+connection_parameters = (
+    'host',
+    'port'
+)
+
+connection_mandatory_parameters = ()
+
 reserved_keywords = (
     'AND',
     'AGENT',

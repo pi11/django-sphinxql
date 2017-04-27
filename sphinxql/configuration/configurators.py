@@ -12,7 +12,8 @@ from ..types import DateTime, Date
 from .configurations import IndexerConfiguration, \
     SearchdConfiguration, \
     SourceConfiguration, \
-    IndexConfiguration
+    IndexConfiguration, \
+    ConnectionConfiguration
 from . import constants
 
 
@@ -52,6 +53,9 @@ DEFAULT_SOURCE_PARAMS = {'sql_host': 'localhost',
 
 DEFAULT_SEARCHD_PARAMS = {'listen': '9306:mysql41',
                           }
+
+DEFAULT_CONNECTION_PARAMS = {'port': '9306',
+                             'host': 'localhost'}
 
 DEFAULT_INDEX_PARAMS = {'type': 'plain'}
 
@@ -185,6 +189,7 @@ class Configurator(object):
         # configured indexer and searchd
         self.indexer_conf = None
         self.searchd_conf = None
+        self.connection_conf = None
 
     def register(self, index):
         """
@@ -284,6 +289,21 @@ class Configurator(object):
 
         return SearchdConfiguration(searchd_params)
 
+    def _configure_connection(self):
+        connection_params = OrderedDict()
+        default_params = DEFAULT_CONNECTION_PARAMS.copy()
+        for k in default_params.keys():
+            default_params[k] = None
+        connection_params.update(default_params)
+        connection_params.update(settings.INDEXES.get('connection_params', {}))
+        if connection_params.get('port') is None:
+            connection_params['port'] = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
+            if ':' in connection_params['port']:
+                connection_params['port'] = connection_params['port'].split(':')[0]
+        if connection_params.get('host') is None:
+            connection_params['host'] = self.searchd_conf.params.get('address', DEFAULT_CONNECTION_PARAMS['host'])
+        return ConnectionConfiguration(connection_params)
+
     @staticmethod
     def _configure_indexer():
         indexer_params = OrderedDict()
@@ -303,6 +323,7 @@ class Configurator(object):
 
         self.indexer_conf = self._configure_indexer()
         self.searchd_conf = self._configure_searchd()
+        self.connection_conf = self._configure_connection()
         self.sources_confs.clear()
         self.indexes_confs.clear()
         self.indexes.clear()
@@ -334,6 +355,8 @@ class Configurator(object):
         # output indexer and searchd
         string_blocks.append(self.indexer_conf.format_output())
         string_blocks.append(self.searchd_conf.format_output())
+
+        os.makedirs(os.path.dirname(self.sphinx_file), exist_ok=True)
 
         with open(self.sphinx_file, 'w') as conf_file:
             conf_file.write('\n'.join(string_blocks))

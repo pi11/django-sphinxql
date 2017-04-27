@@ -69,7 +69,7 @@ class Configuration(object):
                 raise ImproperlyConfigured(
                     'Invalid parameter "{0}" for {1}. '
                     'See Sphinx documentation for "{1} configuration".'
-                    .format(param_name, cls.type_name))
+                        .format(param_name, cls.type_name))
 
             # check if it is mandatory.
             if param_name in missing_parameters:
@@ -92,13 +92,13 @@ class Configuration(object):
                     if not isinstance(entry, (str, int)):
                         raise ImproperlyConfigured(
                             'Item "{0}" of parameter "{1}" in {2} has wrong type.'
-                            .format(entry, param_name, cls.type_name))
+                                .format(entry, param_name, cls.type_name))
 
         if missing_parameters:
             raise ImproperlyConfigured(
                 'Missing parameter(s) {0} for "{1}". '
                 'See Sphinx documentation for {1} configuration.'
-                .format(missing_parameters, cls.type_name))
+                    .format(missing_parameters, cls.type_name))
 
 
 class IndexConfiguration(Configuration):
@@ -142,3 +142,18 @@ class SearchdConfiguration(Configuration):
 
     def __init__(self, params):
         super(SearchdConfiguration, self).__init__('', params)
+
+
+class ConnectionConfiguration(Configuration):
+    """The connection setup returns the connection parameters for querying. The section is connection and possible 
+    params are host and port."""
+    type_name = 'connection'
+    valid_parameters = constants.connection_parameters
+    mandatory_parameters = constants.connection_mandatory_parameters
+
+    def __init__(self, params):
+        super(ConnectionConfiguration, self).__init__('', params)
+        self.params['port'] = int(self.params['port'])
+
+    def get_connection_parameters(self):
+        return self.params['host'], self.params['port']
