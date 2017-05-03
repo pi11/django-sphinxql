@@ -14,7 +14,7 @@ class Command(BaseCommand):
             '--update',
             action='store_true',
             help='',
-            default=True)
+            default=False)
 
     def handle(self, **options):
         self.stdout.write('Started indexing')
