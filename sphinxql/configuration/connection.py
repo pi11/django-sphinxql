@@ -11,7 +11,7 @@ import MySQLdb
 DEFAULT_LIMIT_COUNT = 100
 
 
-class Connection():
+class Connection:
     def __init__(self, host=None, port=None):
         self.host, self.port = self.configure_connection(host, port)
         self.db = None
@@ -38,10 +38,8 @@ class Connection():
     @staticmethod
     def configure_connection(host, port):
         from sphinxql.configuration import indexes_configurator
-        if host is None:
-            host = '0'
-        if port is None:
-            port_string = indexes_configurator.searchd_conf.params['listen']
-            port = int(port_string.split(':')[0])
-
+        if host is None or port is None:
+            host_conf, port_conf = indexes_configurator.connection_conf.get_connection_parameters()
+            host = host if host is not None else host_conf
+            port = port if port is not None else port_conf
         return host, port

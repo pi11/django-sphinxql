@@ -1,3 +1,4 @@
+import os
 
 # for testing postgres
 DATABASES = {
@@ -9,7 +10,7 @@ DATABASES = {
         'PASSWORD': 'test'
     },
 }
-
+# for testing mysql
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',
@@ -31,14 +32,12 @@ PASSWORD_HASHERS = (
     'django.contrib.auth.hashers.MD5PasswordHasher',
 )
 
-import os
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_sphinx')
 
 # we add 'U+00E2' to test unicode
 # we cannot override settings since this is used at config time.
 INDEXES = {
-    'path': os.path.join(BASE_DIR, '_index'),
+    'path': os.path.join(BASE_DIR, 'test_sphinx_index'),
     'sphinx_path': BASE_DIR,
-    'index_params': {'charset_table': '0..9, A..Z->a..z, _, a..z, /, '
-                     'U+00E2'}
+    'index_params': {'charset_table': '0..9, A..Z->a..z, _, a..z, /, U+00E2'}
 }

@@ -12,7 +12,7 @@ class Command(BaseCommand):
         self.stdout.write('Starting Sphinx')
         self.stdout.write('---------------')
 
-        self.stdout.write(configuration.start())
+        configuration.start()
 
         self.stdout.write('----')
         self.stdout.write('Done')
