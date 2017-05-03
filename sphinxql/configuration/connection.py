@@ -8,9 +8,6 @@ except ImportError:
 import MySQLdb
 
 
-DEFAULT_LIMIT_COUNT = 100
-
-
 class Connection:
     def __init__(self, host=None, port=None):
         self.host, self.port = self.configure_connection(host, port)
