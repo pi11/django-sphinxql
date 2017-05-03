@@ -194,6 +194,8 @@ class Configurator(object):
         self.searchd_conf = None
         self.connection_conf = None
 
+        self._configured = False
+
     def register(self, index):
         """
         Registers an index into the configuration.
@@ -324,10 +326,13 @@ class Configurator(object):
 
         This method must be called before `output`.
         """
+        if self._configured:
+            return
         if not hasattr(settings, 'INDEXES'):
             raise ImproperlyConfigured('Django-SphinxQL requires '
                                        'settings.INDEXES')
 
+        self._configured = True
         self.indexer_conf = self._configure_indexer()
         self.searchd_conf = self._configure_searchd()
         self.connection_conf = self._configure_connection()

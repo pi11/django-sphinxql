@@ -35,6 +35,7 @@ class Connection:
     @staticmethod
     def configure_connection(host, port):
         from sphinxql.configuration import indexes_configurator
+        indexes_configurator.configure()
         if host is None or port is None:
             host_conf, port_conf = indexes_configurator.connection_conf.get_connection_parameters()
             host = host if host is not None else host_conf
