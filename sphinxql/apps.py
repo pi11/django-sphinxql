@@ -29,5 +29,5 @@ class SphinxQL(AppConfig):
         try:
             indexes_configurator.configure()
         except (InternalError, OperationalError):
-            logger.warning('Sphinx was not configured: no database found.')
+            logger.exception('Sphinx was not configured: no database found.')
             pass
