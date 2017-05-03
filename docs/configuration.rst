@@ -56,7 +56,6 @@ Django-SphinxQL uses the following default settings::
 
     'index_params': {
         'type': 'plain',
-        'charset_type': 'utf-8'
     }
     'searchd_params': {
         'listen': '9306:mysql41',

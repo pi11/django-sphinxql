@@ -61,16 +61,16 @@ DEFAULT_INDEX_PARAMS = {'type': 'plain'}
 
 
 def _pymysql_mogrify(cursor, query, args=None):
-        """
-        This is a copy of the code that is executed in PyMySQL Cursor.execute
-        function, but only builds the string; it does not execute it.
-        """
-        conn = cursor._get_db()
+    """
+    This is a copy of the code that is executed in PyMySQL Cursor.execute
+    function, but only builds the string; it does not execute it.
+    """
+    conn = cursor._get_db()
 
-        if args is not None:
-            query = query % cursor._escape_args(args, conn)
+    if args is not None:
+        query = query % cursor._escape_args(args, conn)
 
-        return query
+    return query
 
 
 def _generate_sql(query, vendor):
@@ -79,7 +79,7 @@ def _generate_sql(query, vendor):
 
     vendor can only be 'pgsql' or 'mysql'.
     """
-    assert(vendor in ('mysql', 'pgsql'))
+    assert (vendor in ('mysql', 'pgsql'))
 
     db = query.db
     compiler = query.query.get_compiler(using=db)
@@ -99,7 +99,7 @@ def _build_query(index, query, vendor):
     """
     Returns a SQL query built according to the fields we want to index.
     """
-    assert(vendor in ('mysql', 'pgsql'))
+    assert (vendor in ('mysql', 'pgsql'))
 
     def special_annotate(query, dict_values):
         """
@@ -170,6 +170,7 @@ class Configurator(object):
 
     Uses the settings dictionary ``INDEXES``.
     """
+
     def __init__(self):
         if not hasattr(settings, 'INDEXES'):
             raise ImproperlyConfigured('Django-SphinxQL requires '
@@ -299,11 +300,15 @@ class Configurator(object):
         connection_params.update(default_params)
         connection_params.update(settings.INDEXES.get('connection_params', {}))
         if connection_params.get('port') is None:
-            connection_params['port'] = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
-            if ':' in connection_params['port']:
-                connection_params['port'] = connection_params['port'].split(':')[0]
+            listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
+            if ':' in listen:
+                listen = listen.split(':')[1]
+            connection_params['port'] = listen
         if connection_params.get('host') is None:
-            connection_params['host'] = self.searchd_conf.params.get('address', DEFAULT_CONNECTION_PARAMS['host'])
+            listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['host'])
+            if ':' in listen:
+                listen = listen.split(':')[0]
+            connection_params['host'] = listen
         return ConnectionConfiguration(connection_params)
 
     @staticmethod
