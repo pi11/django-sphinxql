@@ -3,7 +3,7 @@ from unittest import expectedFailure
 
 from sphinxql.core.base import Or
 from sphinxql.exceptions import NotSupportedError
-from sphinxql.query import QuerySet
+from sphinxql.query import SphinxQuerySet
 from sphinxql.sql import C, Between
 
 from .indexes import DocumentIndex
@@ -32,7 +32,7 @@ class SimpleTestCase(SphinxQLTestCase):
 
         self.index()
 
-        self.query = QuerySet(DocumentIndex)
+        self.query = SphinxQuerySet(DocumentIndex)
 
 
 class SimpleQuerySetTestCase(SimpleTestCase):
@@ -198,14 +198,14 @@ class QuerySetTestCase(SphinxQLTestCase):
         self.index()
 
     def test_len(self):
-        self.assertEqual(len(QuerySet(DocumentIndex)), 100)
-        self.assertEqual(QuerySet(DocumentIndex).count(), 100)
+        self.assertEqual(len(SphinxQuerySet(DocumentIndex)), 100)
+        self.assertEqual(SphinxQuerySet(DocumentIndex).count(), 100)
 
-        self.assertEqual(len(QuerySet(DocumentIndex).search('@text adasdsa')), 0)
-        self.assertEqual(QuerySet(DocumentIndex).search('@text adasdsa').count(), 0)
+        self.assertEqual(len(SphinxQuerySet(DocumentIndex).search('@text adasdsa')), 0)
+        self.assertEqual(SphinxQuerySet(DocumentIndex).search('@text adasdsa').count(), 0)
 
     def test_getitem(self):
-        query = QuerySet(DocumentIndex)
+        query = SphinxQuerySet(DocumentIndex)
 
         self.assertEqual(len(query), 100)
         self.assertEqual(len(query[:20]), 20)
@@ -217,18 +217,18 @@ class QuerySetTestCase(SphinxQLTestCase):
         self.assertEqual(query[0].number, 2)
 
     def test_order_by(self):
-        q = QuerySet(DocumentIndex).order_by(C('number'))
+        q = SphinxQuerySet(DocumentIndex).order_by(C('number'))
         self.assertEqual(q[0].number, 2)
 
-        q = QuerySet(DocumentIndex).order_by(-C('number'))
+        q = SphinxQuerySet(DocumentIndex).order_by(-C('number'))
         self.assertEqual(q[0].number, 200)
 
-        q = QuerySet(DocumentIndex).search('@text What').order_by(C('@relevance'))
+        q = SphinxQuerySet(DocumentIndex).search('@text What').order_by(C('@relevance'))
         # most relevance is last, because has the most occurrences.
         self.assertEqual(q[0].number, 200)
 
         # other ordering
-        q = QuerySet(DocumentIndex).search('@text What').order_by(C('number'))
+        q = SphinxQuerySet(DocumentIndex).search('@text What').order_by(C('number'))
         self.assertEqual(q[0].number, 2)
 
 
@@ -249,17 +249,17 @@ class LargeQuerySetTestCase(SphinxQLTestCase):
         self.index()
 
     def test_count(self):
-        self.assertEqual(QuerySet(DocumentIndex).count(),
+        self.assertEqual(SphinxQuerySet(DocumentIndex).count(),
                          self.documents.count())
 
     def test_iterate(self):
         with self.assertRaises(IndexError):
-            iter(QuerySet(DocumentIndex))
+            iter(SphinxQuerySet(DocumentIndex))
 
-        self.assertEqual(len(list(iter(QuerySet(DocumentIndex)[:1000]))), 1000)
+        self.assertEqual(len(list(iter(SphinxQuerySet(DocumentIndex)[:1000]))), 1000)
 
     def test_filter(self):
-        sphinx_query = QuerySet(DocumentIndex).filter(number__gt=30)[:1000]
+        sphinx_query = SphinxQuerySet(DocumentIndex).filter(number__gt=30)[:1000]
         django_query = self.documents.filter(number__gt=30)
 
         self.assertEqual(ids_set(sphinx_query), ids_set(django_query))

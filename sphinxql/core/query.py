@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from copy import deepcopy
 
-from ..configuration.connection import Connection, DEFAULT_LIMIT_COUNT
+from ..configuration.connection import Connection
 from ..exceptions import NotSupportedError
 from .base import CompilableSQL, All
 from .columns import IdColumn, Column
@@ -31,8 +31,6 @@ class Query(CompilableSQL):
     def __iter__(self):
         """
         If limits are defined, returns an iterator over all results.
-        else, iterates over all results using LIMIT in chunks of
-        DEFAULT_LIMIT_COUNT.
         """
         return self._connection.iterator(self.as_sql(), self.get_params())
 

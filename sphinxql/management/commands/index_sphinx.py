@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import sys
 from django.core.management.base import BaseCommand
 
 from sphinxql import configuration
@@ -13,16 +14,16 @@ class Command(BaseCommand):
             '--update',
             action='store_true',
             help='',
-            default=True)
+            default=False)
 
     def handle(self, **options):
         self.stdout.write('Started indexing')
         self.stdout.write('----------------')
 
         if options['update']:
-            self.stdout.write(configuration.reindex())
+            configuration.reindex(output=sys.stdout)
         else:
-            self.stdout.write(configuration.index())
+            configuration.index(output=sys.stdout)
 
         self.stdout.write('-----------------')
         self.stdout.write('Indexing finished')

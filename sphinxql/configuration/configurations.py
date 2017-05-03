@@ -139,9 +139,11 @@ class SearchdConfiguration(Configuration):
     type_name = 'searchd'
     valid_parameters = constants.searchd_parameters
     mandatory_parameters = constants.searchd_mandatory_parameters
+    DEFAULT_MAX_MATCHES = 1000
 
     def __init__(self, params):
         super(SearchdConfiguration, self).__init__('', params)
+        self.max_matches = self.params.get('max_matches', SearchdConfiguration.DEFAULT_MAX_MATCHES)
 
 
 class ConnectionConfiguration(Configuration):

@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import List
 
 import django.db.models.query
 
@@ -8,10 +9,40 @@ from .core.lookups import LOOKUP_SEPARATOR, parse_lookup
 from sphinxql.exceptions import NotSupportedError
 from .types import Bool
 from .sql import Match, And, Neg, C, Column, All, Count
+from sphinxql.configuration import indexes_configurator
 
 
-class QuerySet(object):
+def iterate_over_queryset(query_set, callback, amount=500):
+    """
+    The function iterates over the given query_set and calls give callback function for each entry. The query_set is
+    not iterated whole at a time but by a blocks with specified size. The callback function has the ability to stop the
+    iteration.
+    :param query_set: the query_set to be iterated
+    :param callback: the callback function to be called. It shall return True if the iteration shall stop after current
+    entry, False otherwise
+    :param amount: block size
+    :return: nothing
+    """
+    offset = 0
+    finished = False
 
+    while offset < indexes_configurator.searchd_conf.max_matches:
+        current_block = query_set[offset:amount + offset]
+        if len(current_block) == 0:
+            break
+
+        for row in current_block:
+            finished = callback(row)
+            if finished:
+                break
+
+        if finished:
+            break
+
+        offset += amount
+
+
+class SphinxQuerySet(object):
     def __init__(self, index):
         self._index = index
         self.query = Query()
@@ -27,13 +58,13 @@ class QuerySet(object):
         self._set_default_fields(self.query)
 
     def _fetch_raw(self):
+        # type: ()->List
         """
         Fetches by hitting Sphinx
         """
-        if self._fetch_cache is not None:
-            return self._fetch_cache
-
-        self._fetch_cache = list(self._get_query())
+        if self._fetch_cache is None:
+            self._fetch_cache = list(self._get_query())
+        assert isinstance(self._fetch_cache, list)
         return self._fetch_cache
 
     def _get_query(self):
@@ -63,8 +94,7 @@ class QuerySet(object):
 
     def __iter__(self):
         if self.query.limit is None:
-            raise IndexError('Sphinx does not support unbounded iterations '
-                             'over the results.')
+            raise IndexError('Sphinx does not support unbounded iterations over the results.')
         return self._parsed_results()
 
     def __len__(self):
@@ -183,141 +213,212 @@ class QuerySet(object):
         if where is None:
             where = condition
         else:
-            where = where |And| condition
+            where = where | And | condition
         return where
 
     def clone(self):
-        clone = QuerySet(self._index)
+        clone = SphinxQuerySet(self._index)
         clone._match = self._match
         clone.query = self.query.clone()
         return clone
 
 
-class SearchQuerySet(django.db.models.query.QuerySet):
-    """
-    A queryset to translate search results into Django models.
-    """
-    max_search_count = 1000
+class ResultStrategy(object):
+    def __init__(self, search_query_set):
+        self._search_query_set = search_query_set
 
-    def __init__(self, index, query=None, using=None, hints=None):
-        super(SearchQuerySet, self).__init__(index.Meta.model, query, using, hints=hints)
-        self._index = index
-        self._sphinx_queryset = QuerySet(index)
 
+class ModelResultStrategy(ResultStrategy):
+    """
+    Used when no search filter is applied. Returns the models directly using the parent methods.
+    """
+
+    def __init__(self, search_query_set):
+        super(ModelResultStrategy, self).__init__(search_query_set)
+
+    def __iter__(self):
+        return self._search_query_set._model_query_set.__iter__()
+
+    def __len__(self):
+        return self._search_query_set._model_query_set.__len__()
+
+    def __getitem__(self, item):
+        return self._search_query_set._model_query_set.__getitem__(item)
+
+    def count(self):
+        return self._search_query_set._model_query_set.count()
+
+
+class SphinxSearchResultStrategy(ResultStrategy):
+    """
+    Search mode is applied. First we query sphinx to get the document ids and then we filter using the returned ids.
+    """
+
+    def __init__(self, search_query_set):
+        super(SphinxSearchResultStrategy, self).__init__(search_query_set)
         self._result_cache = None
-        self.search_mode = False
 
-    def search_filter(self, *conditions, **lookups):
-        clone = self._clone()
-        clone._sphinx_queryset = self._sphinx_queryset.filter(*conditions,
-                                                              **lookups)
-        return clone
+    def __iter__(self):
+        return iter(self._get_models())
 
-    def search(self, *extended_queries):
-        clone = self._clone()
-        clone.search_mode = True
-        clone._sphinx_queryset = clone._sphinx_queryset.search(*extended_queries)
-        if not clone._sphinx_queryset.query.order_by:
-            clone = clone.search_order_by(C('@relevance'))
-        return clone
+    def __len__(self):
+        return len(self._get_model_queryset_with_sphinx_filter())
 
-    def search_order_by(self, *columns):
-        clone = self._clone()
-        clone._sphinx_queryset = clone._sphinx_queryset.order_by(*columns)
-        return clone
+    def __getitem__(self, item):
+        return self._get_models()[item]
+
+    def count(self):
+        return self._get_model_queryset_with_sphinx_filter().count()
+
+    def _get_models(self):
+        """
+        Returns the models annotated with `search_result`. Uses `_result_cache`.
+        """
+        if self._result_cache is None:
+            self._result_cache = self._fetch_models()
+        return self._result_cache
+
+    def _get_model_queryset_with_sphinx_filter(self, id_list=None):
+        """
+        Returns a Django queryset restricted to the ids in `id_list`.
+        If `id_list` is None, hits Sphinx to retrieve it.
+        """
+        if id_list is None:
+            id_list = self._fetch_sphinx_indexes().keys()
+        return self._search_query_set._model_query_set.filter(pk__in=id_list)
+
+    def _fetch_models(self):
+        indexes = self._fetch_sphinx_indexes()
+        models = self._fetch_filtered_models(indexes)
+        return self._order_models(models, indexes)
+
+    def _order_models(self, models, indexes):
+        sphinx_queryset = self._search_query_set._sphinx_query_set
+
+        if sphinx_queryset.query.order_by and self._has_explicit_ordering():
+            raise NotImplementedError('Can not order by both database and sphinx')
+
+        if sphinx_queryset.query.order_by and not self._has_explicit_ordering():
+            def check_callback(model_id, models, _indexes):
+                return model_id in models
+
+            return list(self._prepare_search_results(indexes, models, indexes, check_callback))
+        else:
+            return list(self._prepare_search_results(models, models, indexes))
+
+    def _prepare_search_results(self, collection, models, indexes, check_callback=None):
+        if not check_callback:
+            check_callback = lambda model_id, models, indexes: True
+        for model_id in collection:
+            if check_callback(model_id, models, indexes):
+                model = self._annotate_search_result(model_id, models, indexes)
+                yield model
+
+    def _annotate_search_result(self, model_id, models, indexes):
+        model = models[model_id]
+        model.search_result = indexes[model_id]
+        return model
+
+    def _fetch_sphinx_indexes(self):
+        sphinx_queryset = self._search_query_set._sphinx_query_set
+        result = []
+
+        def callback(index_obj):
+            result.append((index_obj.id, index_obj))
+            return False
+
+        iterate_over_queryset(sphinx_queryset, callback, )
+        return OrderedDict(result)
+
+    def _fetch_filtered_models(self, indexes):
+        clone = self._get_model_queryset_with_sphinx_filter(indexes.keys())
+        return OrderedDict([(obj.id, obj) for obj in clone])
 
     def _has_explicit_ordering(self):
         """
         A weaker version of ``ordered`` that ignores default ordering and
         Meta.ordering.
         """
-        if self.query.extra_order_by or self.query.order_by:
-            return True
-        return False
+        query = self._search_query_set._model_query_set.query
+        return query.extra_order_by or query.order_by
 
-    def _annotated_models(self):
-        """
-        Returns the models annotated with `search_result`. Uses `_result_cache`.
-        """
-        if self._result_cache is not None:
-            return self._result_cache
 
-        # hit Sphinx: ordered results with index objects populated
-        indexes = OrderedDict([(index_obj.id, index_obj)
-                               for index_obj in
-                               self._sphinx_queryset[:self.max_search_count]])
-
-        # hit Django: ordered results with model objects populated
-        clone = self._get_query(indexes.keys())
-        models = OrderedDict([(obj.id, obj) for obj in clone])
-
-        # exclude objects excluded by Django query
-        # annotate models with search_result.
-        self._result_cache = []
-        if self._sphinx_queryset.query.order_by and \
-                not self._has_explicit_ordering():
-            for id in indexes:
-                if id in models:
-                    # annotate `search_result`
-                    models[id].search_result = indexes[id]
-                    self._result_cache.append(models[id])
-        else:
-            for id in models:
-                # annotate `search_result`
-                models[id].search_result = indexes[id]
-                self._result_cache.append(models[id])
-        return self._result_cache
-
-    def _get_query(self, id_list=None):
-        """
-        Returns a Django queryset restricted to the ids in `id_list`.
-        If `id_list` is None, hits Sphinx to retrieve it.
-        """
-        if id_list is None:
-            id_list = [index_obj.id for index_obj in
-                       self._sphinx_queryset[:self.max_search_count]]
+def clone_query_set(f):
+    def f_with_clone(self, *args, **kwargs):
         clone = self._clone()
-        clone = clone.filter(pk__in=id_list)
-        clone.search_mode = False
+        result = f(self, *args, **kwargs, clone=clone)
+        return clone if result is None else result
+
+    return f_with_clone
+
+
+class SearchQuerySet(object):
+    """
+    A queryset to translate search results into Django models.
+    """
+
+    def __init__(self, index, query=None, using=None, hints=None):
+        self._index = index
+        self._model_query_set = django.db.models.query.QuerySet(index.Meta.model, query, using, hints=hints)
+        self._sphinx_query_set = SphinxQuerySet(index)
+        self._result_strategy = ModelResultStrategy(self)
+
+    @clone_query_set
+    def search_filter(self, *conditions, clone=None, **lookups):
+        clone._sphinx_query_set = self._sphinx_query_set.filter(*conditions, **lookups)
+
+    @clone_query_set
+    def search(self, *extended_queries, order_by_relevance=True, clone=None):
+        clone._sphinx_query_set = clone._sphinx_query_set.search(*extended_queries)
+        clone._result_strategy = SphinxSearchResultStrategy(clone)
+        if not clone._sphinx_query_set.query.order_by and order_by_relevance:
+            clone = clone.search_order_by(C('@relevance'))
         return clone
 
+    @clone_query_set
+    def search_order_by(self, *columns, clone=None):
+        clone._sphinx_query_set = clone._sphinx_query_set.order_by(*columns)
+        clone._result_strategy = SphinxSearchResultStrategy(clone)
+
+    @clone_query_set
+    def filter(self, *conditions, clone=None, **lookups):
+        clone._model_query_set = self._model_query_set.filter(*conditions, **lookups)
+
+    @clone_query_set
+    def annotate(self, *args, clone=None, **kwargs):
+        clone._model_query_set = self._model_query_set.annotate(*args, **kwargs)
+
+    @clone_query_set
+    def all(self, clone=None):
+        pass
+
+    @clone_query_set
+    def order_by(self, *field_names, clone=None):
+        clone._model_query_set = self._model_query_set.order_by(*field_names)
+
+    def _clone(self, class_=None):
+        clone = self._create_cloned_instance(class_)
+        self._fill_cloned_instance(clone)
+        return clone
+
+    def _create_cloned_instance(self, class_):
+        if class_ is None:
+            class_ = self.__class__
+        return class_(self._index)
+
+    def _fill_cloned_instance(self, clone):
+        clone._model_query_set = self._model_query_set
+        clone._sphinx_query_set = self._sphinx_query_set
+        clone._result_strategy = self._result_strategy.__class__(clone)
+
     def __iter__(self):
-        if self.search_mode:
-            return iter(self._annotated_models())
-        return super(SearchQuerySet, self).__iter__()
+        return self._result_strategy.__iter__()
 
     def __len__(self):
-        if self.search_mode:
-            return len(self._get_query())
-        return super(SearchQuerySet, self).__len__()
+        return self._result_strategy.__len__()
 
     def __getitem__(self, item):
-        if self.search_mode:
-            return self._annotated_models()[item]
-        return super(SearchQuerySet, self).__getitem__(item)
+        return self._result_strategy.__getitem__(item)
 
     def count(self):
-        if self.search_mode:
-            return self._get_query().count()
-        return super(SearchQuerySet, self).count()
-
-    def _clone(self, klass=None, setup=False, **kwargs):
-        ## almost-copy of original _clone:
-        if klass is None:
-            klass = self.__class__
-        query = self.query.clone()
-        if self._sticky_filter:
-            query.filter_is_sticky = True
-        # next line is different: first argument is index instead of model
-        c = klass(index=self._index, query=query, using=self._db)
-        c._for_write = self._for_write
-        c._prefetch_related_lookups = self._prefetch_related_lookups[:]
-        c._known_related_objects = self._known_related_objects
-        c.__dict__.update(kwargs)
-        if setup and hasattr(c, '_setup_query'):
-            c._setup_query()
-
-        # sphinx related
-        c.search_mode = self.search_mode
-        c._sphinx_queryset = self._sphinx_queryset.clone()
-        return c
+        return self._result_strategy.count()

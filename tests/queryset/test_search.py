@@ -12,16 +12,15 @@ from tests import SphinxQLTestCase
 
 
 class SearchQuerySetTestCase(SphinxQLTestCase):
-
     def setUp(self):
         super(SearchQuerySetTestCase, self).setUp()
 
         for x in range(1, 101):
             Document.objects.create(
-                summary="This is a summary", text="What a nice text. "*x,
+                summary="This is a summary", text="What a nice text. " * x,
                 date=datetime.date(2015, 2, 2) + datetime.timedelta(days=x),
                 added_time=datetime.datetime(2015, 4, 4, 12, 12, 12) + datetime.timedelta(days=x),
-                number=x*2)
+                number=x * 2)
 
         self.index()
 
@@ -50,10 +49,10 @@ class SearchQuerySetTestCase(SphinxQLTestCase):
         query = self.query.order_by('-id')
         self.assertEqual(query[0].number, 200)
 
-        # don't override Django order means first number is 200
-        query.search_mode = True
         query = query.search_order_by(C('@id'))
-        self.assertEqual(query[0].number, 200)
+        with self.assertRaises(Exception) as context:
+            self.assertEqual(query[0].number, 200)
+        self.assertTrue('Can not order by both database and sphinx' in str(context.exception))
 
         # clear Django ordering overrides it; order becomes @id.
         query = query.order_by()
@@ -63,7 +62,7 @@ class SearchQuerySetTestCase(SphinxQLTestCase):
         q = self.query.search('@text What').search_order_by()
         i = 1
         for x in q:
-            self.assertEqual(x.number, i*2)
+            self.assertEqual(x.number, i * 2)
             i += 1
 
     def test_change_queryset(self):
@@ -104,14 +103,22 @@ class SearchQuerySetTestCase(SphinxQLTestCase):
 
     def test_django_ordering_override(self):
         # this adds a search_order_by
-        q = self.query.search('@text What')
-        q1 = self.query.order_by('number')
-        self.assertEqual(q[0].number, 200)
+        qs = self.query.search('@text What')
+        q1 = self.query.search('@text What', order_by_relevance=False).order_by('number')
+        self.assertEqual(qs[0].number, 200)
         self.assertEqual(q1[0].number, 2)
 
-        # Django order is not ignored
-        q = q.order_by('number')
-        self.assertEqual(q[0].number, 2)
+    def test_ordering_both_fail(self):
+        # this adds a search_order_by
+        q = self.query.search('@text What')
+        self.assertEqual(q[0].number, 200)
+        with self.assertRaises(NotImplementedError) as context:
+            q = q.order_by('number')
+            self.assertEqual(q[0].number, 2)
+        self.assertTrue('Can not order by both database and sphinx' in str(context.exception))
+
+        q1 = self.query.order_by('number')
+        self.assertEqual(q1[0].number, 2)
 
     def test_django_order_not_overridden(self):
         q = self.query.search('@text What').search_order_by()
@@ -137,6 +144,7 @@ class HighNumberSearchQuerySetTestCase(SphinxQLTestCase):
     """
     Test for the case with more than 1000 entries
     """
+
     def setUp(self):
         super(HighNumberSearchQuerySetTestCase, self).setUp()
 

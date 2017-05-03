@@ -101,7 +101,6 @@ index_single_valued_parameters = (
     'embedded_limit',
     'exceptions',
     'min_word_len',
-    'charset_type',
     'charset_table',
     'ignore_chars',
     'min_prefix_len',
@@ -181,7 +180,6 @@ indexer_parameters = (
 
 searchd_parameters = (
     'listen',
-    'address',
     'log',
     'query_log',
     'query_log_format',
