@@ -7,19 +7,29 @@ from .configurators import Configurator
 indexes_configurator = Configurator()
 
 
-def call_process(args, fail_silently=False):
+def call_process(args, fail_silently=False, output=None):
     _fix_sphinx_binary_path(args)
 
+    if output is None:
+        output = subprocess.PIPE
+
     p = subprocess.Popen(args,
-                         stdout=subprocess.PIPE,
+                         stdout=output,
                          stderr=subprocess.PIPE,
                          cwd=indexes_configurator.sphinx_path)
     p.wait()
 
-    out = p.stdout.read().decode('UTF-8')
-    if p.returncode != 0 and not fail_silently:
-        raise Exception('Process `{0}` failed.\n\n{1}'.format(' '.join(args), out))
-    return out
+    error = p.returncode != 0 and not fail_silently
+
+    if output != subprocess.PIPE:
+        if error:
+            raise Exception('Process `{0}` failed.'.format(' '.join(args)))
+        return None
+    else:
+        out = p.stdout.read().decode('UTF-8')
+        if error:
+            raise Exception('Process `{0}` failed.\n\n{0}'.format(' '.join(args), out))
+        return out
 
 
 def call_process_no_wait(args, output=None):
@@ -32,16 +42,16 @@ def _fix_sphinx_binary_path(args):
         args[0] = os.path.join(indexes_configurator.sphinx_bin_path, args[0])
 
 
-def index():
+def index(output=None):
     _make_index_directory()
     return call_process(['indexer', '--all', '--config',
-                         indexes_configurator.sphinx_file])
+                         indexes_configurator.sphinx_file], output=output)
 
 
-def reindex():
+def reindex(output=None):
     _make_index_directory()
     out = call_process(['indexer', '--all', '--rotate', '--config',
-                        indexes_configurator.sphinx_file])
+                        indexes_configurator.sphinx_file], output=output)
     # it is not immediately available; wait a bit
     # see http://sphinxsearch.com/bugs/view.php?id=2350
     time.sleep(0.5)

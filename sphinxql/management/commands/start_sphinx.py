@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import sys
 from django.core.management.base import BaseCommand
 
 from sphinxql import configuration
@@ -12,7 +13,8 @@ class Command(BaseCommand):
         self.stdout.write('Starting Sphinx')
         self.stdout.write('---------------')
 
-        configuration.start()
+        p = configuration.start()
+        p.wait()
 
         self.stdout.write('----')
         self.stdout.write('Done')
