@@ -294,29 +294,40 @@ class Configurator(object):
 
         return SearchdConfiguration(searchd_params)
 
-    def _configure_connection(self):
+    def _configure_connection(self, test=False):
+        connection_params = self._get_default_values()
+        if not test:
+            connection_params.update(settings.INDEXES.get('connection_params', {}))
+        if connection_params.get('port') is None:
+            connection_params['port'] = self._determine_port_from_listen()
+        if connection_params.get('host') is None:
+            connection_params['host'] = self._determine_host_from_listen()
+        return ConnectionConfiguration(connection_params)
+
+    def _get_default_values(self):
         connection_params = OrderedDict()
         default_params = DEFAULT_CONNECTION_PARAMS.copy()
         for k in default_params.keys():
             default_params[k] = None
         connection_params.update(default_params)
-        connection_params.update(settings.INDEXES.get('connection_params', {}))
-        if connection_params.get('port') is None:
-            listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
-            if ':' in listen:
-                listen = listen.split(':')
-                listen = listen[-2] if listen[-1] == 'mysql41' else listen[-1]
-            connection_params['port'] = listen
-        if connection_params.get('host') is None:
-            listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['host'])
-            if ':' in listen:
-                listen = listen.split(':')
-                if len(listen) == 2 and listen[1] == 'mysql41':
-                    listen = DEFAULT_CONNECTION_PARAMS['host']
-                else:
-                    listen = listen[0]
-            connection_params['host'] = listen
-        return ConnectionConfiguration(connection_params)
+        return connection_params
+
+    def _determine_port_from_listen(self):
+        listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
+        if ':' in listen:
+            listen = listen.split(':')
+            listen = listen[-2] if listen[-1] == 'mysql41' else listen[-1]
+        return listen
+
+    def _determine_host_from_listen(self):
+        listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['host'])
+        if ':' in listen:
+            listen = listen.split(':')
+            if len(listen) == 2 and listen[1] == 'mysql41':
+                listen = DEFAULT_CONNECTION_PARAMS['host']
+            else:
+                listen = listen[0]
+        return listen
 
     @staticmethod
     def _configure_indexer():
@@ -325,7 +336,7 @@ class Configurator(object):
         indexer_params.update(settings.INDEXES.get('indexer_params', {}))
         return IndexerConfiguration(indexer_params)
 
-    def configure(self, force=False):
+    def configure(self, force=False, test=False):
         """
         Configures the registered indexes.
 
@@ -340,7 +351,7 @@ class Configurator(object):
         self._configured = True
         self.indexer_conf = self._configure_indexer()
         self.searchd_conf = self._configure_searchd()
-        self.connection_conf = self._configure_connection()
+        self.connection_conf = self._configure_connection(test=test)
         self.sources_confs.clear()
         self.indexes_confs.clear()
         self.indexes.clear()
