@@ -42,10 +42,10 @@ class Searchd:
             self.running = False
 
     def index(self):
-        configuration.index()
+        return configuration.index()
 
     def reindex(self):
-        configuration.reindex()
+        return configuration.reindex()
 
     def _clean_sphinx_index(self):
         if os.path.exists(settings.INDEXES['path']):
@@ -73,7 +73,7 @@ class SphinxQLTestCase(TransactionTestCase):
         """
         Used to reindex the sphinx index.
         """
-        Searchd().reindex()
+        return Searchd().reindex()
 
     def tearDown(cls):
         Searchd().stop()
