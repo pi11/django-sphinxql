@@ -11,16 +11,16 @@ DATABASES = {
     },
 }
 # for testing mysql
-# DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.mysql',
-#        'NAME': 'sphinx_example',
-#        'TEST': {
-#            'NAME': 'test_sphinx_example',
-#        },
-#        'USER': 'root',
-#    },
-#}
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'sphinx_example',
+        'TEST': {
+            'NAME': 'test_sphinx_example',
+        },
+        'USER': 'root',
+    },
+}
 
 INSTALLED_APPS = ('tests.query', 'tests.queryset', 'tests.indexing', 'tests.foreign_relationships', 'sphinxql')
 
@@ -42,3 +42,14 @@ INDEXES = {
     'sphinx_path': BASE_DIR,
     'index_params': {'charset_table': '0..9, A..Z->a..z, _, a..z, /, U+00E2'}
 }
+
+try:
+    import tests.settings_test_local
+
+    if getattr(tests.settings_test_local, 'INDEXES'):
+        INDEXES.update(tests.settings_test_local.INDEXES)
+
+    if getattr(tests.settings_test_local, 'DATABASES'):
+        DATABASES.update(tests.settings_test_local.DATABASES)
+except:
+    pass
