@@ -304,12 +304,17 @@ class Configurator(object):
         if connection_params.get('port') is None:
             listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['port'])
             if ':' in listen:
-                listen = listen.split(':')[1]
+                listen = listen.split(':')
+                listen = listen[-2] if listen[-1] == 'mysql41' else listen[-1]
             connection_params['port'] = listen
         if connection_params.get('host') is None:
             listen = self.searchd_conf.params.get('listen', DEFAULT_CONNECTION_PARAMS['host'])
             if ':' in listen:
-                listen = listen.split(':')[0]
+                listen = listen.split(':')
+                if len(listen) == 2 and listen[1] == 'mysql41':
+                    listen = DEFAULT_CONNECTION_PARAMS['host']
+                else:
+                    listen = listen[0]
             connection_params['host'] = listen
         return ConnectionConfiguration(connection_params)
 
@@ -320,13 +325,13 @@ class Configurator(object):
         indexer_params.update(settings.INDEXES.get('indexer_params', {}))
         return IndexerConfiguration(indexer_params)
 
-    def configure(self):
+    def configure(self, force=False):
         """
         Configures the registered indexes.
 
         This method must be called before `output`.
         """
-        if self._configured:
+        if self._configured and not force:
             return
         if not hasattr(settings, 'INDEXES'):
             raise ImproperlyConfigured('Django-SphinxQL requires '

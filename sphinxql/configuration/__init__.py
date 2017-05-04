@@ -28,7 +28,8 @@ def call_process(args, fail_silently=False, output=None):
     else:
         out = p.stdout.read().decode('UTF-8')
         if error:
-            raise Exception('Process `{0}` failed.\n\n{0}'.format(' '.join(args), out))
+            err = p.stderr.read().decode('UTF-8')
+            raise Exception('Process `{0}` failed.\n\n{1}\n\n{2}'.format(' '.join(args), out, err))
         return out
 
 
