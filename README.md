@@ -20,10 +20,9 @@ results as Django models.
 Django-SphinxQL requires:
 
 - Python 3
-- pymysql
 - Django (>=1.8)
 - Sphinx
-- A backend (pymysql or psycopg2)
+- A database backend (pymysql or psycopg2)
 
 Our build matrix in Travis has 8 builds:
 
@@ -37,6 +36,8 @@ For more details, you can check the directory `tests` and `.travis.yml`.
 To run the tests locally, use:
 
     PYTHONPATH=..:$PYTHONPATH django-admin.py test --settings=tests.settings_test tests
+
+Also the test settings can be adapted to the local environment using `tests.settings_test_local`. 
 
 The next sections present a minimal setup to use this package. The full documentation
 is available [here](http://django-sphinxql.readthedocs.org/en/latest/).
@@ -69,12 +70,26 @@ installed app (it doesn't contain Django models):
 2. add ``INDEXES`` to settings:
 
         INDEXES = {
-            'path': os.path.join(BASE_DIR, '_index'),  # also do `mkdir _index`.
+            'path': os.path.join(BASE_DIR, '_index'),  # The directory is created automatically.
             'sphinx_path': BASE_DIR
         }
 
-- ``path`` is where Sphinx database is going to be created
-- ``sphinx_path`` is the directory that will contain Sphinx-specific files.
+- ``path`` is where Sphinx database, i.e. Sphinx indices, are going to be created
+- ``sphinx_path`` is the directory that will contain Sphinx-specific files such as `sphinx.conf`, `searchd.pid` and 
+  `searchd.log`.
+3. generate configuration using `python manage.py generate_sphinx_conf`: the configuration file is then used by a local
+   Sphinx instance or you may use parts and put it into your Sphinx server.
+4. run Sphinx instance either using `python manage.py sphinx_start` or use your own service with the provided config.
+   You may stop the instance using `python manage.py sphinx_stop`.
+   To connect to another instance use 
+   
+        INDEXES = {
+             ...
+             'connection_params': {
+                'host': 'my.sphinx.host.com',
+                'port': 9306
+            }
+        }
 
 Index your models
 -----------------

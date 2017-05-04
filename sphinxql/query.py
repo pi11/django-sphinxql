@@ -12,7 +12,7 @@ from .sql import Match, And, Neg, C, Column, All, Count
 from sphinxql.configuration import indexes_configurator
 
 
-def iterate_over_queryset(query_set, callback, amount=500):
+def iterate_over_queryset(query_set, callback, amount=1000):
     """
     The function iterates over the given query_set and calls give callback function for each entry. The query_set is
     not iterated whole at a time but by a blocks with specified size. The callback function has the ability to stop the

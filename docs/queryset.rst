@@ -34,32 +34,18 @@ SearchQuerySet
     a Django ``QuerySet`` and can be directly replaced without any change.
 
     When you apply :meth:`search`, ``SearchQuerySet`` assumes you want to use
-    Sphinx on it:
-
-    .. attribute:: search_mode
-
-        Defaults to ``False``. Defines whether Sphinx should be used by the
-        :class:`SearchQuerySet` prior to Django database hit. Automatically
-        set to ``True`` when :meth:`search` is used.
-
-    When :attr:`search_mode` is ``True``, the queryset performs a search in Sphinx
-    database with the query built from the ``search*`` methods before interacting
-    with Django database:
+    Sphinx on it. When :meth:`search` or :meth:`search_order_by` is called,
+    the queryset performs a search in Sphinx database with the query built from
+    the ``search*`` methods before interacting with Django database:
 
     * filtering done by :meth:`search` and :meth:`search_filter` are applied
       before Django's query, restricting the valid ``id`` in the Django's query.
     * :meth:`search_order_by` orders the results.
 
-    At most, ``SearchQuerySet`` does 1 database hit in Sphinx, followed by the
-    Django hit. In :attr:`search_mode`, the ``SearchQuerySet`` has an upper limit:
-
-    .. attribute:: max_search_count
-
-        A class attribute defining the maximum number of entries returned by the
-        Sphinx hit. Currently hardcoded to 1000.
-
-        Notice that this implies that any search-based query has always at most
-        count 1000 (can be less if Django filters some).
+    At most, ``SearchQuerySet`` does O(1) database hits in Sphinx, followed by the
+    Django hit. The amount of results from Sphinx is given by searchd configuration
+    max_matches. The number of hits is then at most ceil of max_matches / 1000 since
+    in one hit we fetch at most 1000 results.
 
     If Sphinx is used, model objects are annotated with an attribute
     ``search_result`` with the :class:`~sphinxql.indexes.Index` populated the
@@ -160,17 +146,17 @@ SearchQuerySet
         Like in Django, ``"id__"`` is reserved to indicate the object id (Sphinx
         shares the same ids as Django).
 
-QuerySet
---------
+SphinxQuerySet
+--------------
 
-.. class:: query.QuerySet
+.. class:: query.SphinxQuerySet
 
-    ``QuerySet`` is a Django-equivalent ``QuerySet`` to indexes. I.e. contrary to
-    :class:`SearchQuerySet`, this QuerySet only interacts with the Sphinx
+    ``SphinxQuerySet`` is a Django-equivalent ``SphinxQuerySet`` to indexes. Contrary
+    to :class:`SearchQuerySet`, this SphinxQuerySet only interacts with the Sphinx
     database and returns instances of the Index. This can be useful when you need
     to present results of a search that don't need any extra data from Django.
 
-    The interface of this QuerySet is equivalent to Django QuerySet: it
+    The interface of SearchQuerySet is equivalent to Django QuerySet: it
     is lazy and allows chaining. However, the current implemented methods are
     limited:
 
