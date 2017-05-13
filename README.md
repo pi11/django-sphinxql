@@ -37,7 +37,7 @@ To run the tests locally, use:
 
     PYTHONPATH=..:$PYTHONPATH django-admin.py test --settings=tests.settings_test tests
 
-Also the test settings can be adapted to the local environment using `tests.settings_test_local`. 
+Also the test settings can be adapted to the local environment using `tests.settings_test_local` module. Just set up the `INDEXES` and `DATABASES` dictionaries accordingly.
 
 The next sections present a minimal setup to use this package. The full documentation
 is available [here](http://django-sphinxql.readthedocs.org/en/latest/).
