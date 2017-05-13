@@ -18,6 +18,7 @@ install:
   - pip install PyMySQL psycopg2
   - pip install django==$DJANGO_VERSION
   - pip install coveralls
+  - pip install typing
 
 script:
   - PYTHONPATH=$PYTHONPATH:`pwd` coverage run `which django-admin.py` test --settings=tests.settings_travis tests
