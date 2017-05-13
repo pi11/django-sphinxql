@@ -27,7 +27,7 @@ Django-SphinxQL requires:
 Our build matrix in Travis has 8 builds:
 
 - Python 3.4
-- Django 1.8 and 1.10
+- Django 1.8, 1.10 and 1.11
 - Sphinx 2.2.10 and 2.2.11
 - mysql and postgres backends
 
