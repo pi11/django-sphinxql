@@ -71,12 +71,14 @@ installed app (it doesn't contain Django models):
 
         INDEXES = {
             'path': os.path.join(BASE_DIR, '_index'),  # The directory is created automatically.
-            'sphinx_path': BASE_DIR
+            'sphinx_path': BASE_DIR,
+            'sphinx_bin_path': '/opt/sphinx-2.2.11/bin'
         }
 
 - ``path`` is where Sphinx database, i.e. Sphinx indices, are going to be created
 - ``sphinx_path`` is the directory that will contain Sphinx-specific files such as `sphinx.conf`, `searchd.pid` and 
   `searchd.log`.
+- ``sphinx_bin_path`` is the directory where the sphinx binaries ``searchd`` and ``indexer`` reside. If it is not specified, then the libraries assumes that they are available directly via ``searchd`` and ``indexer`` commands, i.e. they are in ``PATH`` variable.
 3. generate configuration using `python manage.py generate_sphinx_conf`: the configuration file is then used by a local
    Sphinx instance or you may use parts and put it into your Sphinx server.
 4. run Sphinx instance either using `python manage.py sphinx_start` or use your own service with the provided config.
