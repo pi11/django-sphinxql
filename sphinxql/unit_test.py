@@ -33,6 +33,9 @@ class Searchd:
 
         configuration.index()
         configuration.start(DEVNULL)
+        # Give searchd some time to start up
+        # This is cumbersome, reading the information about start from pipe would be much nicer!
+        sleep(2)
         self.running = True
 
     def stop(self):

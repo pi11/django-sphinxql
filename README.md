@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/jorgecarleitao/django-sphinxql.svg?branch=master)](https://travis-ci.org/jorgecarleitao/django-sphinxql)
-[![Coverage Status](https://coveralls.io/repos/jorgecarleitao/django-sphinxql/badge.svg?branch=master&service=github)](https://coveralls.io/github/jorgecarleitao/django-sphinxql?branch=master)
+[![Build Status](https://travis-ci.org/AtteqCom/django-sphinxql.svg?branch=master)](https://travis-ci.org/AtteqCom/django-sphinxql)
+[![Coverage Status](https://coveralls.io/repos/AtteqCom/django-sphinxql/badge.svg?branch=master&service=github)](https://coveralls.io/github/AtteqCom/django-sphinxql?branch=master)
 
 Django-SphinxQL implements [Sphinx search](http://sphinxsearch.com) for
 [Django](https://www.djangoproject.com), thanks for checking it out.
@@ -27,7 +27,7 @@ Django-SphinxQL requires:
 Our build matrix in Travis has 8 builds:
 
 - Python 3.4
-- Django 1.8 and 1.10
+- Django 1.8, 1.10 and 1.11
 - Sphinx 2.2.10 and 2.2.11
 - mysql and postgres backends
 
@@ -37,7 +37,7 @@ To run the tests locally, use:
 
     PYTHONPATH=..:$PYTHONPATH django-admin.py test --settings=tests.settings_test tests
 
-Also the test settings can be adapted to the local environment using `tests.settings_test_local`. 
+Also the test settings can be adapted to the local environment using `tests.settings_test_local` module. Just set up the `INDEXES` and `DATABASES` dictionaries accordingly.
 
 The next sections present a minimal setup to use this package. The full documentation
 is available [here](http://django-sphinxql.readthedocs.org/en/latest/).
@@ -71,16 +71,18 @@ installed app (it doesn't contain Django models):
 
         INDEXES = {
             'path': os.path.join(BASE_DIR, '_index'),  # The directory is created automatically.
-            'sphinx_path': BASE_DIR
+            'sphinx_path': BASE_DIR,
+            'sphinx_bin_path': '/opt/sphinx-2.2.11/bin'
         }
 
 - ``path`` is where Sphinx database, i.e. Sphinx indices, are going to be created
 - ``sphinx_path`` is the directory that will contain Sphinx-specific files such as `sphinx.conf`, `searchd.pid` and 
   `searchd.log`.
+- ``sphinx_bin_path`` is the directory where the sphinx binaries ``searchd`` and ``indexer`` reside. If it is not specified, then the libraries assumes that they are available directly via ``searchd`` and ``indexer`` commands, i.e. they are in ``PATH`` variable.
 3. generate configuration using `python manage.py generate_sphinx_conf`: the configuration file is then used by a local
    Sphinx instance or you may use parts and put it into your Sphinx server.
-4. run Sphinx instance either using `python manage.py sphinx_start` or use your own service with the provided config.
-   You may stop the instance using `python manage.py sphinx_stop`.
+4. run Sphinx instance either using `python manage.py start_sphinx` or use your own service with the provided config.
+   You may stop the instance using `python manage.py stop_sphinx`.
    To connect to another instance use 
    
         INDEXES = {

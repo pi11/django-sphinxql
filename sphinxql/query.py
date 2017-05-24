@@ -346,7 +346,7 @@ class SphinxSearchResultStrategy(ResultStrategy):
 def clone_query_set(f):
     def f_with_clone(self, *args, **kwargs):
         clone = self._clone()
-        result = f(self, *args, **kwargs, clone=clone)
+        result = f(self, *args, clone=clone, **kwargs)
         return clone if result is None else result
 
     return f_with_clone
