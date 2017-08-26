@@ -65,11 +65,11 @@ class Searchd:
         os.mkdir(settings.INDEXES['path'])
 
 
-class SphinxQLTestCase(TransactionTestCase):
+class SphinxQLTestCaseMixin:
     running = False
 
     def setUp(self):
-        super(SphinxQLTestCase, self).setUp()
+        super(SphinxQLTestCaseMixin, self).setUp()
         Searchd().start()
 
     def index(self):
@@ -80,4 +80,8 @@ class SphinxQLTestCase(TransactionTestCase):
 
     def tearDown(cls):
         Searchd().stop()
-        super(SphinxQLTestCase, cls).tearDown()
+        super(SphinxQLTestCaseMixin, cls).tearDown()
+
+
+class SphinxQLTestCase(SphinxQLTestCaseMixin, TransactionTestCase):
+    pass
