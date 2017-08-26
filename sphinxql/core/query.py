@@ -14,13 +14,14 @@ class Query(CompilableSQL):
     """
     A SphinxQL Query.
     """
+
     def __init__(self, connection=None):
         self._statements = {
             'select': SelectStatement(),
             'from': FromStatement(),
             'where': None,
             'order_by': OrderByStatement(),
-            'limit': None   # `None` or (offset, count)
+            'limit': None  # `None` or (offset, count)
         }
         self.low_mark, self.high_mark = 0, None
 
@@ -113,7 +114,6 @@ class Query(CompilableSQL):
 
 
 class SelectStatement(CompilableSQL):
-
     def __init__(self):
         self._expressions = []
         self._alias = []  # list of alias (string) or None if no alias for expression
@@ -162,7 +162,6 @@ class SelectStatement(CompilableSQL):
 
 
 class FromStatement(CompilableSQL):
-
     def __init__(self):
         self._indexes = OrderedDict()  # index_name: index
 
@@ -181,6 +180,11 @@ class FromStatement(CompilableSQL):
                 first = False
             else:
                 separator = ', '
+
+            index = self._indexes[index_name]
+            if hasattr(index, 'Meta'):
+                if hasattr(index.Meta, 'db_table'):
+                    index_name = index.Meta.db_table
 
             sql += separator + '%s' % index_name
 
