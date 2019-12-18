@@ -1,5 +1,5 @@
 import inspect
-from django.utils import six
+#from django.utils import six
 
 
 class IndexManager(object):
@@ -32,7 +32,10 @@ class IndexManager(object):
 
         new_methods = {}
         # Refs http://bugs.python.org/issue1785.
-        predicate = inspect.isfunction if six.PY3 else inspect.ismethod
+        # since bug is closed and django3 does not has six module anymore
+        # the test for py3 is removed
+        # 
+        predicate = inspect.ismethod
         for name, method in inspect.getmembers(queryset_class, predicate=predicate):
             # Only copy missing methods.
             if hasattr(cls, name):
